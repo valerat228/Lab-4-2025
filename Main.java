@@ -312,57 +312,95 @@ public class Main {
             Log lnFunc = new Log(Math.E);
             Function composition = Functions.composition(expFunc, lnFunc);
 
-            //табулируем композицию
-            TabulatedFunction tabulatedComposition = TabulatedFunctions.tabulate(composition, 0.1, 10, 11);
+            //табулируем композицию от 0 до 10 с шагом 1
+            TabulatedFunction tabulatedComposition = TabulatedFunctions.tabulate(composition, 0, 10, 11);
 
-            System.out.println("Исходная функция ln(exp(x)):");
+            System.out.println("Исходная функция ln(exp(x)) на [0, 10]:");
             for (int i = 0; i < tabulatedComposition.getPointsCount(); i++) {
-                System.out.printf("  точка %d: (%.1f, %.4f)%n",
-                        i, tabulatedComposition.getPointX(i), tabulatedComposition.getPointY(i));
+                double x = tabulatedComposition.getPointX(i);
+                double y = tabulatedComposition.getPointY(i);
+                System.out.printf("  x=%.1f: ln(exp(x))=%.4f (должно быть %.1f)%n", x, y, x);
             }
 
-            //сериализуем с использованием Serializable
+
+            System.out.println("\n=== Serializable ===");
+            //сериализуем с использованием Serializable (LinkedListTabulatedFunction)
+            TabulatedFunction serializableFunc = new LinkedListTabulatedFunction(0, 10, 11);
+            //заполняем значениями
+            for (int i = 0; i < serializableFunc.getPointsCount(); i++) {
+                double x = serializableFunc.getPointX(i);
+                double y = composition.getFunctionValue(x);
+                serializableFunc.setPointY(i, y);
+            }
+
             try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("serializable.dat"))) {
-                oos.writeObject(tabulatedComposition);
-                System.out.println("функция сериализована в serializable.dat");
+                oos.writeObject(serializableFunc);
+                System.out.println("функция сериализована в serializable.dat (Serializable)");
             }
 
             //десериализуем
-            TabulatedFunction deserializedComposition;
+            TabulatedFunction deserializedSerializable;
             try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("serializable.dat"))) {
-                deserializedComposition = (TabulatedFunction) ois.readObject();
+                deserializedSerializable = (TabulatedFunction) ois.readObject();
                 System.out.println("функция десериализована из serializable.dat");
             }
 
-            //сравниваем исходную и десериализованную функции
-            System.out.println("Сравнение исходной и десериализованной функций:");
+
+            System.out.println("\n=== Externalizable ===");
+            //сериализуем с использованием Externalizable (ArrayTabulatedFunction)
+            TabulatedFunction externalizableFunc = new ArrayTabulatedFunction(0, 10, 11);
+            //заполняем значениями
+            for (int i = 0; i < externalizableFunc.getPointsCount(); i++) {
+                double x = externalizableFunc.getPointX(i);
+                double y = composition.getFunctionValue(x);
+                externalizableFunc.setPointY(i, y);
+            }
+
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("externalizable.dat"))) {
+                oos.writeObject(externalizableFunc);
+                System.out.println("функция сериализована в externalizable.dat (Externalizable)");
+            }
+
+            //десериализуем
+            TabulatedFunction deserializedExternalizable;
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("externalizable.dat"))) {
+                deserializedExternalizable = (TabulatedFunction) ois.readObject();
+                System.out.println("функция десериализована из externalizable.dat");
+            }
+
+            //сравниваем все функции
+            System.out.println("\nСравнение всех функций:");
             boolean allMatch = true;
             for (int i = 0; i < tabulatedComposition.getPointsCount(); i++) {
                 double original = tabulatedComposition.getPointY(i);
-                double deserialized = deserializedComposition.getPointY(i);
-                double error = Math.abs(original - deserialized);
+                double ser = deserializedSerializable.getPointY(i);
+                double ext = deserializedExternalizable.getPointY(i);
+                double errorSer = Math.abs(original - ser);
+                double errorExt = Math.abs(original - ext);
 
-                System.out.printf("  точка %d: исходная=%.4f, десериализованная=%.4f, ошибка=%.6f%n",
-                        i, original, deserialized, error);
+                System.out.printf("  точка %d: исходная=%.4f, ser=%.4f(err=%.6f), ext=%.4f(err=%.6f)%n",
+                        i, original, ser, errorSer, ext, errorExt);
 
-                if (error > 1e-10) {
+                if (errorSer > 1e-10 || errorExt > 1e-10) {
                     allMatch = false;
                 }
             }
 
             if (allMatch) {
-                System.out.println("Сериализация работает правильно - все значения совпадают!");
+                System.out.println("Обе сериализации работают правильно - все значения совпадают!");
             } else {
                 System.out.println("Ошибка сериализации - значения не совпадают!");
             }
 
             //анализ файлов
             File serializableFile = new File("serializable.dat");
+            File externalizableFile = new File("externalizable.dat");
             File binaryFile = new File("test_binary.dat");
             File textFile = new File("test_text.txt");
 
             System.out.println("\nСравнение размеров файлов:");
-            System.out.printf("  Сериализация (serializable.dat): %d байт%n", serializableFile.length());
+            System.out.printf("  Serializable (serializable.dat): %d байт%n", serializableFile.length());
+            System.out.printf("  Externalizable (externalizable.dat): %d байт%n", externalizableFile.length());
             if (binaryFile.exists()) {
                 System.out.printf("  Бинарный формат (test_binary.dat): %d байт%n", binaryFile.length());
             }

@@ -1,10 +1,11 @@
 package functions;
+import java.io.*;
+//import java.io.Serializable;
 
-import java.io.Serializable;
 
-
-public class ArrayTabulatedFunction implements TabulatedFunction, Serializable {
-    private static final long serialVersionUID = 1L;
+//public class ArrayTabulatedFunction implements TabulatedFunction, Serializable {
+public class ArrayTabulatedFunction implements TabulatedFunction, Externalizable  {
+    //private static final long serialVersionUID = 1L;
 
     private FunctionPoint[] points; //массив типа FunctionPoint
     private int pointsCount;
@@ -70,7 +71,26 @@ public class ArrayTabulatedFunction implements TabulatedFunction, Serializable {
         }
     }
 
+    //методы Externalizable
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeInt(pointsCount);
+        for (int i = 0; i < pointsCount; i++) {
+            out.writeDouble(points[i].get_x());
+            out.writeDouble(points[i].get_y());
+        }
+    }
 
+    @Override
+    public void readExternal(ObjectInput in) throws IOException {
+        pointsCount = in.readInt();
+        points = new FunctionPoint[pointsCount];
+        for (int i = 0; i < pointsCount; i++) {
+            double x = in.readDouble();
+            double y = in.readDouble();
+            points[i] = new FunctionPoint(x, y);
+        }
+    }
 
     public double getLeftDomainBorder() {
         return points[0].get_x();  //х первой точки
